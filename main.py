@@ -6,7 +6,6 @@ from books.spiders.media_spider import MediaSpider
 import os
 import json
 import uuid
-from urllib.parse import urlparse
 import logging
 import crochet
 import requests
@@ -21,10 +20,10 @@ logging.basicConfig(level=logging.DEBUG)
 async def root():
     return {"status": "API is running"}
 
-@retry(stop=stop_after_attempt(5), wait=wait_fixed(5), retry=retry_if_exception_type(requests.exceptions.RequestException))
+@retry(stop=stop_after_attempt(7), wait=wait_fixed(5), retry=retry_if_exception_type(requests.exceptions.RequestException))
 def check_splash():
     logging.debug("Checking Splash connection...")
-    response = requests.get("http://splash:8050", timeout=10)
+    response = requests.get("http://splash:8050", timeout=20)
     logging.debug(f"Splash response: {response.status_code}")
     return response.status_code == 200
 
@@ -34,37 +33,30 @@ def run_spider(start_url: str, output_file: str):
     try:
         if not check_splash():
             logging.error("Cannot connect to Splash service")
-            return []
+            return
     except Exception as e:
         logging.error(f"Splash connection failed: {e}")
-        return []
+        return
 
-    try:
-      settings = get_project_settings()
-      settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
-      settings.set('SPLASH_URL', 'http://splash:8050')
-      settings.set('DOWNLOAD_TIMEOUT', 600)
-      process = CrawlerProcess(settings)
-      crawler = process.create_crawler(MediaSpider, start_url=start_url)
-      process.crawl(crawler)
-      process.start()
-      logging.debug(f"Checking if file exists: /app/{output_file}")
-      if os.path.exists(f"/app/{output_file}"):
-          with open(f"/app/{output_file}", 'r') as f:
-              data = json.load(f)
-          logging.debug(f"File found: /app/{output_file}, Data: {data}")
-          return data
-      logging.error(f"File not found: /app/{output_file}")
-      return []
-    except Exception as e:
-        logging.error(f"Scrapy err: {e}")
-        return []
+    settings = get_project_settings()
+    settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
+    settings.set('SPLASH_URL', 'http://splash:8050')
+    settings.set('DOWNLOAD_TIMEOUT', 600)
+    process = CrawlerProcess(settings)
+    crawler = process.create_crawler(MediaSpider, start_url=start_url)
+    process.crawl(crawler)
+    process.start()
+    logging.debug(f"Checking if file exists: /app/{output_file}")
+    if os.path.exists(f"/app/{output_file}"):
+        with open(f"/app/{output_file}", 'r') as f:
+            data = json.load(f)
+        logging.debug(f"File found: /app/{output_file}, Data: {data}")
+    else:
+        logging.error(f"File not found: /app/{output_file}")
 
 def run_spider_task(start_url: str, output_file: str):
-    # Gọi run_spider và chờ kết quả
     eventual_result = run_spider(start_url, output_file)
-    eventual_result.wait(timeout=600)  # Chờ tối đa 600 giây
-    # Không cần trả về giá trị vì đây là background task
+    eventual_result.wait(timeout=600)
 
 @app.post("/scrape")
 async def scrape(url: str, background_tasks: BackgroundTasks):
