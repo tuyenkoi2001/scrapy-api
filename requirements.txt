@@ -5,3 +5,4 @@ scrapy-splash==0.9.0
 crochet==2.1.1
 pillow==10.0.0
 six==1.16.0
+tenacity==8.2.3
