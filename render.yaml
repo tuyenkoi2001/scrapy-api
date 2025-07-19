@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: scrapy-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+  - type: web
+    name: splash
+    env: docker
+    dockerfilePath: ./Dockerfile.splash
+    plan: free
+    envVars:
+      - key: SPLASH_PORT
+        value: 8050
