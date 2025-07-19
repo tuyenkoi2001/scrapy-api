@@ -9,6 +9,10 @@ from urllib.parse import urlparse
 
 app = FastAPI()
 
+@app.get("/")
+async def root():
+    return {"status": "API is running"}
+
 def run_spider(start_url: str, output_file: str):
     settings = get_project_settings()
     settings.set('FEEDS', {output_file: {'format': 'json'}}, priority='cmdline')
