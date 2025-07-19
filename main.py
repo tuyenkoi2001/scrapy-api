@@ -23,7 +23,7 @@ async def root():
 @retry(stop=stop_after_attempt(12), wait=wait_fixed(5), retry=retry_if_exception_type(requests.exceptions.RequestException))
 def check_splash():
     logging.debug("Checking Splash connection...")
-    splash_urls = ["http://splash:8050", "http://splash.internal:8050"]  # Thêm fallback
+    splash_urls = ["http://splash:8050", "http://splash.scrapinghub.com:8050/"]  # Thêm fallback
     for url in splash_urls:
         try:
             logging.debug(f"Trying Splash URL: {url}")
