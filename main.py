@@ -59,7 +59,7 @@ def run_spider(start_url: str, output_file: str):
 @app.post("/scrape")
 async def scrape(url: str, background_tasks: BackgroundTasks):
     if not url.startswith(('http://', 'https://')):
-        raise HTTPException(status_code=400, detail="Invalid URL. Must start with http:// or https://"))
+        raise HTTPException(status_code=400, detail="Invalid URL. Must start with http:// or https://")
     
     output_file = f"output_{uuid.uuid4()}.json"
     logging.debug(f"Scrape request received for URL: {url}, Output: {output_file}")
