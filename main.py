@@ -56,6 +56,12 @@ def run_spider(start_url: str, output_file: str):
     logging.error(f"File not found: /app/{output_file}")
     return []
 
+def run_spider_task(start_url: str, output_file: str):
+    # Gọi run_spider và chờ kết quả
+    eventual_result = run_spider(start_url, output_file)
+    eventual_result.wait(timeout=600)  # Chờ tối đa 600 giây
+    return eventual_result.retrieve()
+
 @app.post("/scrape")
 async def scrape(url: str, background_tasks: BackgroundTasks):
     if not url.startswith(('http://', 'https://')):
@@ -63,7 +69,7 @@ async def scrape(url: str, background_tasks: BackgroundTasks):
     
     output_file = f"output_{uuid.uuid4()}.json"
     logging.debug(f"Scrape request received for URL: {url}, Output: {output_file}")
-    background_tasks.add_task(run_spider.wait, url, output_file)  # Sử dụng run_spider.wait
+    background_tasks.add_task(run_spider_task, url, output_file)  # Sử dụng hàm trung gian
     return {
         "message": "Scraping started",
         "output_file": output_file,
