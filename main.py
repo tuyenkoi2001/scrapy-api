@@ -20,12 +20,16 @@ logging.basicConfig(level=logging.DEBUG)
 async def root():
     return {"status": "API is running"}
 
-@retry(stop=stop_after_attempt(10), wait=wait_fixed(5), retry=retry_if_exception_type(requests.exceptions.RequestException))
+@retry(stop=stop_after_attempt(12), wait=wait_fixed(5), retry=retry_if_exception_type(requests.exceptions.RequestException))
 def check_splash():
     logging.debug("Checking Splash connection...")
-    response = requests.get("http://splash:8050", timeout=30)
-    logging.debug(f"Splash response: {response.status_code}")
-    return response.status_code == 200
+    try:
+        response = requests.get("http://splash:8051", timeout=30)
+        logging.debug(f"Splash response: {response.status_code}")
+        return response.status_code == 200
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Splash connection attempt failed: {e}")
+        raise
 
 @crochet.run_in_reactor
 def run_spider(start_url: str, output_file: str):
@@ -43,7 +47,7 @@ def run_spider(start_url: str, output_file: str):
         else:
             settings = get_project_settings()
             settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
-            settings.set('SPLASH_URL', 'http://splash:8050')
+            settings.set('SPLASH_URL', 'http://splash:8051')
             settings.set('DOWNLOAD_TIMEOUT', 600)
             process = CrawlerProcess(settings)
             crawler = process.create_crawler(MediaSpider, start_url=start_url, use_splash=True)
