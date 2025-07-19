@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.DEBUG)
 async def root():
     return {"status": "API is running"}
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(2), retry=retry_if_exception_type(requests.exceptions.RequestException))
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(5), retry=retry_if_exception_type(requests.exceptions.RequestException))
 def check_splash():
     logging.debug("Checking Splash connection...")
     response = requests.get("http://splash:8050", timeout=10)
@@ -39,22 +39,26 @@ def run_spider(start_url: str, output_file: str):
         logging.error(f"Splash connection failed: {e}")
         return []
 
-    settings = get_project_settings()
-    settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
-    settings.set('SPLASH_URL', 'http://splash:8050')
-    settings.set('DOWNLOAD_TIMEOUT', 600)
-    process = CrawlerProcess(settings)
-    crawler = process.create_crawler(MediaSpider, start_url=start_url)
-    process.crawl(crawler)
-    process.start()
-    logging.debug(f"Checking if file exists: /app/{output_file}")
-    if os.path.exists(f"/app/{output_file}"):
-        with open(f"/app/{output_file}", 'r') as f:
-            data = json.load(f)
-        logging.debug(f"File found: /app/{output_file}, Data: {data}")
-        return data
-    logging.error(f"File not found: /app/{output_file}")
-    return []
+    try:
+      settings = get_project_settings()
+      settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
+      settings.set('SPLASH_URL', 'http://splash:8050')
+      settings.set('DOWNLOAD_TIMEOUT', 600)
+      process = CrawlerProcess(settings)
+      crawler = process.create_crawler(MediaSpider, start_url=start_url)
+      process.crawl(crawler)
+      process.start()
+      logging.debug(f"Checking if file exists: /app/{output_file}")
+      if os.path.exists(f"/app/{output_file}"):
+          with open(f"/app/{output_file}", 'r') as f:
+              data = json.load(f)
+          logging.debug(f"File found: /app/{output_file}, Data: {data}")
+          return data
+      logging.error(f"File not found: /app/{output_file}")
+      return []
+    except Exception as e:
+        logging.error(f"Scrapy err: {e}")
+        return []
 
 def run_spider_task(start_url: str, output_file: str):
     # Gọi run_spider và chờ kết quả
