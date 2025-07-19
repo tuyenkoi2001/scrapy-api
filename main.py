@@ -23,19 +23,25 @@ async def root():
 @retry(stop=stop_after_attempt(12), wait=wait_fixed(5), retry=retry_if_exception_type(requests.exceptions.RequestException))
 def check_splash():
     logging.debug("Checking Splash connection...")
-    try:
-        response = requests.get("http://splash:8051", timeout=30)
-        logging.debug(f"Splash response: {response.status_code}")
-        return response.status_code == 200
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Splash connection attempt failed: {e}")
-        raise
+    splash_urls = ["http://splash:8051", "http://splash.internal:8051"]  # Thêm fallback
+    for url in splash_urls:
+        try:
+            logging.debug(f"Trying Splash URL: {url}")
+            response = requests.get(url, timeout=30)
+            logging.debug(f"Splash response for {url}: {response.status_code}")
+            if response.status_code == 200:
+                return url
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Splash connection attempt failed for {url}: {e}")
+    logging.error("All Splash connection attempts failed")
+    return None
 
 @crochet.run_in_reactor
 def run_spider(start_url: str, output_file: str):
     logging.debug(f"Starting spider for URL: {start_url}, Output: {output_file}")
     try:
-        if not check_splash():
+        splash_url = check_splash()
+        if not splash_url:
             logging.error("Cannot connect to Splash service, using direct Scrapy")
             settings = get_project_settings()
             settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
@@ -47,7 +53,7 @@ def run_spider(start_url: str, output_file: str):
         else:
             settings = get_project_settings()
             settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
-            settings.set('SPLASH_URL', 'http://splash:8051')
+            settings.set('SPLASH_URL', splash_url)
             settings.set('DOWNLOAD_TIMEOUT', 600)
             process = CrawlerProcess(settings)
             crawler = process.create_crawler(MediaSpider, start_url=start_url, use_splash=True)
