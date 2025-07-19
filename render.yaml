@@ -15,4 +15,5 @@ services:
     envVars:
       - key: SPLASH_PORT
         value: 8050
-    healthCheckPath: /  # Thêm health check để đảm bảo Splash chạy
+    healthCheckPath: /
+    internalPort: 8050  # Đảm bảo cổng nội bộ

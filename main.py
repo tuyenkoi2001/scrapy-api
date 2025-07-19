@@ -20,10 +20,10 @@ logging.basicConfig(level=logging.DEBUG)
 async def root():
     return {"status": "API is running"}
 
-@retry(stop=stop_after_attempt(7), wait=wait_fixed(5), retry=retry_if_exception_type(requests.exceptions.RequestException))
+@retry(stop=stop_after_attempt(10), wait=wait_fixed(5), retry=retry_if_exception_type(requests.exceptions.RequestException))
 def check_splash():
     logging.debug("Checking Splash connection...")
-    response = requests.get("http://splash:8050", timeout=20)
+    response = requests.get("http://splash:8050", timeout=30)
     logging.debug(f"Splash response: {response.status_code}")
     return response.status_code == 200
 
@@ -32,20 +32,27 @@ def run_spider(start_url: str, output_file: str):
     logging.debug(f"Starting spider for URL: {start_url}, Output: {output_file}")
     try:
         if not check_splash():
-            logging.error("Cannot connect to Splash service")
-            return
+            logging.error("Cannot connect to Splash service, using direct Scrapy")
+            settings = get_project_settings()
+            settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
+            settings.set('DOWNLOAD_TIMEOUT', 600)
+            process = CrawlerProcess(settings)
+            crawler = process.create_crawler(MediaSpider, start_url=start_url, use_splash=False)
+            process.crawl(crawler)
+            process.start()
+        else:
+            settings = get_project_settings()
+            settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
+            settings.set('SPLASH_URL', 'http://splash:8050')
+            settings.set('DOWNLOAD_TIMEOUT', 600)
+            process = CrawlerProcess(settings)
+            crawler = process.create_crawler(MediaSpider, start_url=start_url, use_splash=True)
+            process.crawl(crawler)
+            process.start()
     except Exception as e:
-        logging.error(f"Splash connection failed: {e}")
+        logging.error(f"Spider failed: {e}")
         return
 
-    settings = get_project_settings()
-    settings.set('FEEDS', {f"/app/{output_file}": {'format': 'json'}}, priority='cmdline')
-    settings.set('SPLASH_URL', 'http://splash:8050')
-    settings.set('DOWNLOAD_TIMEOUT', 600)
-    process = CrawlerProcess(settings)
-    crawler = process.create_crawler(MediaSpider, start_url=start_url)
-    process.crawl(crawler)
-    process.start()
     logging.debug(f"Checking if file exists: /app/{output_file}")
     if os.path.exists(f"/app/{output_file}"):
         with open(f"/app/{output_file}", 'r') as f:
