@@ -14,7 +14,7 @@ services:
     plan: free
     envVars:
       - key: SPLASH_PORT
-        value: 8051
-    internalPort: 8051
+        value: 8050
+    internalPort: 8050
     healthCheckPath: /
     autoScaling: false
